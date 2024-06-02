@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Virtual Makeup</title>
+    <style>
+        #video, #canvas, #overlay {
+            display: block;
+            margin: 0 auto;
+            position: absolute;
+            top: 0;
+            left: 0;
+        }
+        #canvas {
+            z-index: 1;
+        }
+        #overlay {
+            z-index: 2;
+        }
+    </style>
+</head>
+<body>
+<video id="video" autoplay playsinline width="640" height="480"></video>
+<canvas id="canvas" width="640" height="480"></canvas>
+<canvas id="overlay" width="640" height="480"></canvas>
+
+<script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
+
+<script>
+    const video = document.getElementById('video');
+    const canvas = document.getElementById('canvas');
+    const overlay = document.getElementById('overlay');
+
+    // 获取摄像头输入
+    navigator.mediaDevices.getUserMedia({ video: true })
+        .then(stream => {
+            video.srcObject = stream;
+        })
+        .catch(err => {
+            console.error("Error accessing camera: ", err);
+        });
+
+    // 加载模型
+    async function loadModels() {
+        await faceapi.nets.tinyFaceDetector.loadFromUri('/models');
+        await faceapi.nets.faceLandmark68Net.loadFromUri('/models');
+    }
+
+    // 检测嘴唇区域
+    async function detectLips() {
+        const displaySize = { width: video.width, height: video.height };
+        faceapi.matchDimensions(canvas, displaySize);
+
+        const detections = await faceapi.detectAllFaces(video, new faceapi.TinyFaceDetectorOptions())
+            .withFaceLandmarks();
+
+        const ctx = overlay.getContext('2d');
+        ctx.clearRect(0, 0, overlay.width, overlay.height);
+
+        if (detections.length > 0) {
+            const resizedDetections = faceapi.resizeResults(detections, displaySize);
+            const landmarks = resizedDetections[0].landmarks;
+            const lipsOuter = landmarks.getMouth().slice(0, 12); // 外部嘴唇区域
+            drawLips(lipsOuter);
+        }
+    }
+    function drawLips(lips) {
+        const ctx = overlay.getContext('2d');
+        ctx.fillStyle = 'rgba(255, 0, 0, 0.5)';
+        ctx.beginPath();
+        lips.forEach((point, index) => {
+            if (index === 0) {
+                ctx.moveTo(point.x, point.y);
+            } else {
+                ctx.lineTo(point.x, point.y);
+            }
+        });
+        ctx.closePath();
+        ctx.fill();
+    }
+
+    video.addEventListener('play', () => {
+        loadModels().then(() => {
+            setInterval(detectLips, 50);
+        });
+    });
+
+    video.addEventListener('play', () => {
+        const displaySize = { width: video.width, height: video.height };
+        const ctx = canvas.getContext('2d');
+        faceapi.matchDimensions(canvas, displaySize);
+
+        (function drawVideo() {
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            requestAnimationFrame(drawVideo);
+        })();
+    });
+</script>
+</body>
+</html>
