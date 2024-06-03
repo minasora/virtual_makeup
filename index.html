@@ -18,12 +18,19 @@
         #overlay {
             z-index: 2;
         }
+        #colorPicker {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            z-index: 3;
+        }
     </style>
 </head>
 <body>
 <video id="video" autoplay playsinline width="640" height="480"></video>
 <canvas id="canvas" width="640" height="480"></canvas>
 <canvas id="overlay" width="640" height="480"></canvas>
+<input type="color" id="colorPicker" value="#ff0000">
 
 <script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
 
@@ -31,6 +38,9 @@
     const video = document.getElementById('video');
     const canvas = document.getElementById('canvas');
     const overlay = document.getElementById('overlay');
+    const colorPicker = document.getElementById('colorPicker');
+
+    let lipColor = colorPicker.value;
 
     // 获取摄像头输入
     navigator.mediaDevices.getUserMedia({ video: true })
@@ -65,9 +75,10 @@
             drawLips(lipsOuter);
         }
     }
+
     function drawLips(lips) {
         const ctx = overlay.getContext('2d');
-        ctx.fillStyle = 'rgba(255, 0, 0, 0.5)';
+        ctx.fillStyle = lipColor;
         ctx.beginPath();
         lips.forEach((point, index) => {
             if (index === 0) {
@@ -79,6 +90,10 @@
         ctx.closePath();
         ctx.fill();
     }
+
+    colorPicker.addEventListener('input', (event) => {
+        lipColor = event.target.value;
+    });
 
     video.addEventListener('play', () => {
         loadModels().then(() => {
